@@ -68,7 +68,7 @@ defmodule GRPC.Adapter.Chatterbox.Client do
         channel |> get_active_pname |> :h2_client.get_response(stream_id)
     after timeout(opts) ->
       # TODO: test
-      raise GRPC.TimeoutError
+      raise GRPC.Errors.Timeout
     end
   end
 
