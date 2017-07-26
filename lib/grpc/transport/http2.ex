@@ -4,6 +4,7 @@ defmodule GRPC.Transport.HTTP2 do
   """
 
   alias GRPC.Transport.Utils
+  alias GRPC.StatusCode
 
   def server_headers() do
     %{":status" => 200}
@@ -15,6 +16,13 @@ defmodule GRPC.Transport.HTTP2 do
       # TODO: custom grpc-status
       "grpc-status" => "0",
       "grpc-message" => ""
+    }
+  end
+
+  def server_trailers(code) do
+    %{
+      "grpc-status" => "#{code}",
+      "grpc-message" => StatusCodes.decode_message(code)
     }
   end
 

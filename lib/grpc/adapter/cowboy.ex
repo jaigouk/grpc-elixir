@@ -88,6 +88,9 @@ defmodule GRPC.Adapter.Cowboy do
   def stream_send(%{payload: req}, data) do
     :cowboy_req.stream_body(data, :nofin, req)
   end
+  def stream_send(%{payload: req}, {:error, code}) do
+    :cowboy_req.stream_body("", :nofin, req)
+  end
 
   defp cowboy_start_args(server, port, opts) do
     dispatch = :cowboy_router.compile([

@@ -35,6 +35,7 @@ defmodule GRPC.Server do
       {:ok, _, port} = GRPC.Server.start(Greeter.Server, 50051)
       :ok = GRPC.Server.stop(Greeter.Server)
   """
+  alias GRPC.StatusCodes
 
   defmacro __using__(opts) do
     quote bind_quoted: [service_mod: opts[:service]] do
@@ -51,13 +52,12 @@ defmodule GRPC.Server do
   end
 
   @doc false
-  @spec call(atom, GRPC.Server.Stream.t,
+  @spec call(atom, GRPC.Servewr.Stream.t,
     tuple, atom) :: {:ok, GRPC.Server.Stream.t, struct} | {:ok, struct}
   def call(service_mod, stream, {_, {req_mod, req_stream}, {res_mod, res_stream}} = _rpc, func_name) do
     marshal_func = fn(res) -> service_mod.marshal(res_mod, res) end
     unmarshal_func = fn(req) -> service_mod.unmarshal(req_mod, req) end
     stream = %{stream | marshal: marshal_func, unmarshal: unmarshal_func}
-
     handle_request(req_stream, res_stream, stream, func_name)
   end
 
@@ -78,18 +78,34 @@ defmodule GRPC.Server do
 
   defp handle_request(false, false, %{server: server_mod} = stream, func_name, request) do
     response = apply(server_mod, func_name, [request, stream])
-    {:ok, stream, response}
+    reply(response, stream)
   end
   defp handle_request(false, true, %{server: server_mod} = stream, func_name, request) do
     apply(server_mod, func_name, [request, stream])
-    {:ok, stream}
+    # {:ok, stream}
+    reply(stream)
   end
   defp handle_request(true, false, %{server: server_mod} = stream, func_name, req_stream) do
     response = apply(server_mod, func_name, [req_stream, stream])
-    {:ok, stream, response}
+    reply(response, stream)
   end
   defp handle_request(true, true, %{server: server_mod} = stream, func_name, req_stream) do
     apply(server_mod, func_name, [req_stream, stream])
+    # {:ok, stream}
+    reply(stream)
+  end
+
+  defp reply({:error, code}, stream) do
+    # require IEx
+    # IEx.pry()
+    {:error, stream, code}
+  end
+
+  defp reply(response, stream) do
+    {:ok, stream, response}
+  end
+
+  defp reply(stream) do
     {:ok, stream}
   end
 
@@ -143,4 +159,13 @@ defmodule GRPC.Server do
     {:ok, data} = response |> marshal.() |> GRPC.Message.to_data(iolist: true)
     adapter.stream_send(stream, data)
   end
+
+  def stream_send(%{adapter: adapter} = stream, {:error, code}) do
+    adapter.stream_send(stream, {:error, code})
+  end
+  #
+  # defp reply({:error, code}, stream) do
+  #   {:error, stream, code}
+  # end
+
 end
